@@ -1,0 +1,7 @@
+neat-python
+numpy
+json
+pickle
+subprocess
+os
+gamelib
