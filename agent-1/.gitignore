@@ -1,1 +1,2 @@
-errorFile*
+errorFile*.txt
+g.pickle
