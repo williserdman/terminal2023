@@ -1,0 +1,7 @@
+Random seed: 2347349505762835569
+Traceback (most recent call last):
+  File "/home/w-ubuntu/code/terminal2023/agent-2/algo_strategy.py", line 152, in <module>
+    algo = AlgoStrategy()
+  File "/home/w-ubuntu/code/terminal2023/agent-2/algo_strategy.py", line 49, in __init__
+    [self.genome, self.config] = pickle.load(f)
+KeyboardInterrupt

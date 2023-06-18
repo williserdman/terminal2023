@@ -3,10 +3,11 @@ import os
 import pickle
 import subprocess
 import json
+import time
 
 # gptd not checked
 def get_winner(): 
-    folder_path = "../replays"
+    folder_path = "replays"
     file_extension = ".replay"
 
     # Get the list of files in the folder
@@ -37,7 +38,7 @@ def get_winner():
 def clear_replays():
     import os
 
-    folder_path = "../replays"  # Specify the folder path
+    folder_path = "replays"  # Specify the folder path
 
     # Get a list of all files in the folder
     files = os.listdir(folder_path)
@@ -48,17 +49,17 @@ def clear_replays():
         if os.path.isfile(file_path):
             os.remove(file_path)
 
-print("All files in the folder have been deleted.")
+    print("All files in the folder have been deleted.")
 
 def run_match(g1, g2, config):
     # Set up each agent
-    with open("../agent-1/g.pickle", "wb") as f:
+    with open("agent-1/g.pickle", "wb") as f:
         pickle.dump([g1, config], f)
-    with open("../agent-2/g.pickle", "wb") as f:
+    with open("agent-2/g.pickle", "wb") as f:
         pickle.dump([g2, config], f)
 
     # Run the match
-    subprocess.Popen("python3 ../scripts/run_match.py agent-1 agent-2")
+    os.system("python3 scripts/run_match.py agent-1 agent-2")
 
     # Find the winner and do fitnesses
     # agent-1 will be p1 in replays
@@ -87,8 +88,8 @@ def eval_genomes(genomes, config):
             run_match(genome1, genome2, config)
 
 def run_neat(config):
-    # p = neat.Checkpointer.restore_checkpoint('neat-checkpoint-7')
-    p = neat.Population(config)
+    p = neat.Checkpointer.restore_checkpoint('neat-checkpoint-0')
+    # p = neat.Population(config)
     p.add_reporter(neat.StdOutReporter(True))
     stats = neat.StatisticsReporter()
     p.add_reporter(stats)
@@ -100,6 +101,7 @@ def run_neat(config):
         pickle.dump(winner, f)
 
 if __name__ == "__main__":
+    print("has to be run from the terminal2023 dir, make sure java is installed")
     local_dir = os.path.dirname(__file__)
     config_path = os.path.join(local_dir, "config.txt")
 

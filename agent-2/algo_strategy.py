@@ -7,41 +7,31 @@ import json
 import neat
 import pickle
 import numpy as np
+import os
+import copy
 
 # arbitrary number that determines the size of input/output, higher is more possible data
 ARB = 30
 
 # have to grab genome and config
-genome = ""
-config = ""
 
-with open("g.pickle", "rb") as f:
-    [genome, config] = pickle.load(f)
 
-nn_in = json.loads("{}")
+#nn_in = json.loads("""{"p2Units":[[],[],[],[],[],[],[],[]],"turnInfo":[0,0,-1,0],"p1Stats":[30.0,40.0,5.0,0],"p1Units":[[],[],[],[],[],[],[],[]],"p2Stats":[30.0,40.0,5.0,0],"events":{"selfDestruct":[],"breach":[],"damage":[],"shield":[],"move":[],"spawn":[],"death":[],"attack":[],"melee":[]}}""")
 
-net = neat.nn.FeedForwardNetwork.create(genome, config)
-
-def moves(invaljson):
-    global net
-    master = []
-    master.append(invaljson["p1Stats"]).append(invaljson["p2stats"])
-    for i in range(8):
-        x = invaljson["p1Units"][i]
-        l = len(x)
-        if l >= ARB:
-            master.append(x[:ARB])
+def flatten_array(arr):
+    flattened_array = []
+    for item in arr:
+        if isinstance(item, list):
+            flattened_array.extend(flatten_array(item))
         else:
-            master.append(x).append([[0, 0, 0, "-1"]]*(ARB-l))
-    for i in range(8):
-        x = invaljson["p2Units"][i]
-        l = len(x)
-        if l >= ARB:
-            master.append(x[:ARB])
-        else:
-            master.append(x).append([[0, 0, 0, "-1"]]*(ARB-l))
-    o = np.array(net.activate(master))
-    return o.reshape(60, 3)
+            flattened_array.append(item)
+    return flattened_array
+
+
+def remove_string_from_list(lst):
+    st = type("")
+    filtered_list = [item for item in lst if type(item) != st]
+    return filtered_list
 
 class AlgoStrategy(gamelib.AlgoCore):
     def __init__(self):
@@ -49,6 +39,44 @@ class AlgoStrategy(gamelib.AlgoCore):
         seed = random.randrange(maxsize)
         random.seed(seed)
         gamelib.debug_write('Random seed: {}'.format(seed))
+        self.nn_in = "{}"
+        self.genome = ""
+        self.config = ""
+
+        local_dir = os.path.dirname(__file__)
+        p_path = os.path.join(local_dir, "g.pickle")
+        with open(p_path, "rb") as f:
+            [self.genome, self.config] = pickle.load(f)
+
+        self.net = neat.nn.FeedForwardNetwork.create(self.genome, self.config)
+
+    def moves(self):
+        #gamelib.debug_write(self.nn_in)
+        invaljson = json.loads(self.nn_in)
+        master = []
+        if invaljson == {}:
+            gamelib.debug_write("skipping")
+            return [[0, 0, 0] * 60]
+        master += (invaljson["p1Stats"])
+        master += (invaljson["p2Stats"])
+        for i in range(8):
+            x = invaljson["p1Units"][i]
+            l = len(x)
+            if l >= ARB:
+                master += (x[:ARB])
+            else:
+                master += (x)
+                master += ([[0, 0, 0, "-1"]]*(ARB-l))
+        for i in range(8):
+            x = invaljson["p2Units"][i]
+            l = len(x)
+            if l >= ARB:
+                master += (x[:ARB])
+            else:
+                master += (x)
+                master += ([[0, 0, 0, "-1"]]*(ARB-l))
+        o = np.array(self.net.activate(remove_string_from_list(flatten_array(master))))
+        return o.reshape(60, 3)
 
     def on_game_start(self, config):
         """ 
@@ -87,7 +115,7 @@ class AlgoStrategy(gamelib.AlgoCore):
     def strategy(self, game_state):
         #nn will create moves
         #do nothing, rem, upgrade, wall, support, turret, scout, destructor, interceptor
-        outlayer = moves(nn_in)
+        outlayer = self.moves()
         # outlayer = [[0, 0, 0] * 60]
         for i in outlayer:
             c = round(i[0])
@@ -113,10 +141,11 @@ class AlgoStrategy(gamelib.AlgoCore):
 
     def on_action_frame(self, turn_string):
         # Let's record at what position we get scored on
-        state = json.loads(turn_string)
-        if state["turnInfo"][2] == -1:
-            global nn_in
-            nn_in = state
+        #state = json.loads(turn_string)
+        #if state["turnInfo"][2] == -1:
+         #   self.nn_in = turn_string
+         #   gamelib.debug_write(self.nn_in)
+        self.nn_in = turn_string
 
 
 if __name__ == "__main__":
