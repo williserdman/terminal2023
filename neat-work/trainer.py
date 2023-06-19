@@ -4,6 +4,22 @@ import pickle
 import subprocess
 import json
 import time
+import numpy as np
+
+def flatten_array(arr):
+    flattened_array = []
+    for item in arr:
+        if isinstance(item, list):
+            flattened_array.extend(flatten_array(item))
+        else:
+            flattened_array.append(item)
+    return flattened_array
+
+
+def remove_string_from_list(lst):
+    st = type("")
+    filtered_list = [item for item in lst if type(item) != st]
+    return filtered_list
 
 # gptd not checked
 def get_winner(): 
@@ -76,7 +92,55 @@ def run_match(g1, g2, config):
 
     clear_replays()
 
+def jump_start_eval(genomes, config):
+    for i, (genome_id, genome) in enumerate(genomes):
+        net = neat.nn.FeedForwardNetwork.create(genome, config)
+        directory = "pairs"
+
+        # Get the list of files in the directory
+        file_list = [filename for filename in os.listdir(directory) if filename.endswith(".pickle")]
+
+        # Loop through each .txt file
+        genome.fitness = 0
+        for filename in file_list:
+            file_path = os.path.join(directory, filename)
     
+            # Process the file
+            with open(file_path, "rb") as file:
+                [k, v] = pickle.load(file)
+
+            for i in range(len(k)):
+                key = k[i]
+                val = v[i]
+                ARB = 10
+                #print(val)
+                master = []
+                #key = key.replace("'", '"')
+                invaljson = json.loads(key)
+                if invaljson == {}:
+                    #gamelib.debug_write("skipping")
+                    return [[0, 0, 0] * 60]
+                master += (invaljson["p1Stats"])
+                master += (invaljson["p2Stats"])
+                for i in range(8):
+                    x = invaljson["p1Units"][i]
+                    l = len(x)
+                    if l >= ARB:
+                        master += (x[:ARB])
+                    else:
+                        master += (x)
+                        master += ([[0, 0, 0, "-1"]]*(ARB-l))
+                for i in range(8):
+                    x = invaljson["p2Units"][i]
+                    l = len(x)
+                    if l >= ARB:
+                        master += (x[:ARB])
+                    else:
+                        master += (x)
+                        master += ([[0, 0, 0, "-1"]]*(ARB-l))
+                o = np.array(net.activate(remove_string_from_list(flatten_array(master))))
+                f = (np.abs(np.array(val) - o))
+                genome.fitness += 1/(np.sum(f) + 1)
 
 def eval_genomes(genomes, config):
     for i, (genome_id1, genome1) in enumerate(genomes):
@@ -88,14 +152,14 @@ def eval_genomes(genomes, config):
             run_match(genome1, genome2, config)
 
 def run_neat(config):
-    p = neat.Checkpointer.restore_checkpoint('neat-checkpoint-0')
-    # p = neat.Population(config)
+    # p = neat.Checkpointer.restore_checkpoint('neat-checkpoint-0')
+    p = neat.Population(config)
     p.add_reporter(neat.StdOutReporter(True))
     stats = neat.StatisticsReporter()
     p.add_reporter(stats)
     p.add_reporter(neat.Checkpointer(3))
 
-    winner = p.run(eval_genomes, 500)
+    winner = p.run(jump_start_eval, 500)
 
     with open("winner.pickle", "wb") as f:
         pickle.dump(winner, f)
